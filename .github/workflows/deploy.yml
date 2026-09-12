@@ -1,0 +1,43 @@
+name: Deploy Nest Display
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-nest-display
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Run tests
+        run: python3 -m unittest -v
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: cgm-nest-hub-display
+          workload_identity_provider: projects/372468007492/locations/global/workloadIdentityPools/github-actions/providers/github-provider
+          service_account: github-deployer@cgm-nest-hub-display.iam.gserviceaccount.com
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          project_id: cgm-nest-hub-display
+          service: nest-display
+          region: us-east1
+          source: .
+          flags: >-
+            --service-account=nest-display-runner@cgm-nest-hub-display.iam.gserviceaccount.com

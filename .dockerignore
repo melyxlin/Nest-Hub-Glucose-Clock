@@ -15,3 +15,5 @@ README.md
 SECURITY.md
 LICENSE
 requirements-cast.txt
+
+gha-creds-*.json
