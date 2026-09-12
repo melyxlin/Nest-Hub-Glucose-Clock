@@ -91,12 +91,122 @@
     }
     #enable-sound:active { background: rgba(255, 255, 255, .2); }
     #enable-sound[hidden] { display: none; }
+    #settings-button {
+      position: fixed;
+      right: 3vw;
+      bottom: 3vh;
+      z-index: 10;
+      padding: 1.5vh 2.2vw;
+      border: 1px solid rgba(255, 255, 255, .55);
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(0, 0, 0, .28);
+      font: inherit;
+      font-size: min(2.7vw, 3.3vh);
+      cursor: pointer;
+    }
+    #settings-button:active { background: rgba(255, 255, 255, .2); }
+    #settings-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      display: grid;
+      place-items: center;
+      padding: 4vh 5vw;
+      background: rgba(8, 12, 16, .78);
+      backdrop-filter: blur(10px);
+    }
+    #settings-overlay[hidden] { display: none; }
+    .settings-card {
+      width: min(720px, 90vw);
+      max-height: 92vh;
+      overflow: auto;
+      padding: 4vh 5vw;
+      border: 1px solid rgba(255, 255, 255, .25);
+      border-radius: 4vh;
+      background: #1f252b;
+      box-shadow: 0 2vh 8vh rgba(0, 0, 0, .45);
+    }
+    .settings-card h1 { margin: 0 0 3vh; font-size: min(5vw, 6vh); }
+    .setting-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 3vw;
+      margin: 2vh 0;
+    }
+    .setting-label { text-align: left; font-size: min(3.2vw, 4vh); }
+    .stepper { display: flex; align-items: center; gap: 1.8vw; }
+    .stepper button {
+      width: min(9vw, 10vh);
+      height: min(9vw, 10vh);
+      border: 1px solid rgba(255, 255, 255, .38);
+      border-radius: 50%;
+      color: #fff;
+      background: #39434d;
+      font-size: min(6vw, 7vh);
+      line-height: 1;
+    }
+    .threshold-value {
+      min-width: 12vw;
+      font-size: min(5vw, 6vh);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .sound-toggle { width: min(5vw, 6vh); height: min(5vw, 6vh); accent-color: #48c79a; }
+    #settings-message { min-height: 3vh; margin: 2vh 0; color: #ffd1d1; font-size: min(2.6vw, 3.2vh); }
+    .settings-actions { display: flex; justify-content: flex-end; gap: 2vw; }
+    .settings-actions button {
+      padding: 1.6vh 3.2vw;
+      border: 1px solid rgba(255, 255, 255, .4);
+      border-radius: 999px;
+      color: #fff;
+      background: #39434d;
+      font: inherit;
+      font-size: min(3vw, 3.7vh);
+    }
+    .settings-actions .save { border-color: #48c79a; background: #17664f; }
     @media (prefers-reduced-motion: reduce) { body { transition: none; } }
   </style>
 </head>
 <body class="stale">
+  <button id="settings-button" type="button" aria-haspopup="dialog">Settings</button>
   <button id="enable-sound" type="button">Tap to enable alerts</button>
   <audio id="alert-audio" preload="auto"></audio>
+  <section id="settings-overlay" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+    <div class="settings-card">
+      <h1 id="settings-title">Glucose alerts</h1>
+      <div class="setting-row">
+        <span class="setting-label">Low below</span>
+        <div class="stepper">
+          <button type="button" data-setting="low" data-change="-5" aria-label="Lower low threshold">−</button>
+          <output id="low-setting" class="threshold-value">70</output>
+          <button type="button" data-setting="low" data-change="5" aria-label="Raise low threshold">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">High above</span>
+        <div class="stepper">
+          <button type="button" data-setting="high" data-change="-5" aria-label="Lower high threshold">−</button>
+          <output id="high-setting" class="threshold-value">180</output>
+          <button type="button" data-setting="high" data-change="5" aria-label="Raise high threshold">+</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <label class="setting-label" for="low-sound-setting">Low alert sound</label>
+        <input id="low-sound-setting" class="sound-toggle" type="checkbox" checked>
+      </div>
+      <div class="setting-row">
+        <label class="setting-label" for="high-sound-setting">High alert sound</label>
+        <input id="high-sound-setting" class="sound-toggle" type="checkbox" checked>
+      </div>
+      <div id="settings-message" role="status"></div>
+      <div class="settings-actions">
+        <button id="cancel-settings" type="button">Cancel</button>
+        <button id="save-settings" class="save" type="button">Save</button>
+      </div>
+    </div>
+  </section>
   <main>
     <header class="clock" aria-label="Current time and date">
       <div id="time">--:--</div>
@@ -123,11 +233,26 @@
     const deltaElement = document.getElementById('delta');
     const arrowElement = document.getElementById('arrow');
     const metadataElement = document.getElementById('metadata');
+    const settingsButton = document.getElementById('settings-button');
+    const settingsOverlay = document.getElementById('settings-overlay');
+    const lowSetting = document.getElementById('low-setting');
+    const highSetting = document.getElementById('high-setting');
+    const lowSoundSetting = document.getElementById('low-sound-setting');
+    const highSoundSetting = document.getElementById('high-sound-setting');
+    const settingsMessage = document.getElementById('settings-message');
+    const cancelSettingsButton = document.getElementById('cancel-settings');
+    const saveSettingsButton = document.getElementById('save-settings');
     const enableSoundButton = document.getElementById('enable-sound');
     const alertAudio = document.getElementById('alert-audio');
     let latestReading = null;
     let nextPollMilliseconds = 60000;
     let alertAudioEnabled = false;
+    let currentSettings = {
+      low_threshold: 70,
+      high_threshold: 180,
+      low_alert_sound: true,
+      high_alert_sound: true
+    };
     const pendingAlertTimestamp = { low: 0, high: 0 };
     const displayKey = new URLSearchParams(window.location.search).get('key');
 
@@ -135,6 +260,96 @@
       if (!displayKey) return path;
       const separator = path.includes('?') ? '&' : '?';
       return `${path}${separator}key=${encodeURIComponent(displayKey)}`;
+    }
+
+    function settingsFromPayload(payload) {
+      return {
+        low_threshold: Number(payload.low_threshold),
+        high_threshold: Number(payload.high_threshold),
+        low_alert_sound: payload.low_alert_sound !== false,
+        high_alert_sound: payload.high_alert_sound !== false
+      };
+    }
+
+    function rangeForValue(value, settings) {
+      if (value < settings.low_threshold) return 'low';
+      if (value > settings.high_threshold) return 'high';
+      return 'in-range';
+    }
+
+    function populateSettings(settings) {
+      lowSetting.value = settings.low_threshold;
+      lowSetting.textContent = settings.low_threshold;
+      highSetting.value = settings.high_threshold;
+      highSetting.textContent = settings.high_threshold;
+      lowSoundSetting.checked = settings.low_alert_sound;
+      highSoundSetting.checked = settings.high_alert_sound;
+    }
+
+    async function openSettings() {
+      settingsMessage.textContent = 'Loading…';
+      settingsOverlay.hidden = false;
+      populateSettings(currentSettings);
+      try {
+        const response = await fetch(protectedUrl('/api/settings'), { cache: 'no-store' });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'Settings unavailable');
+        currentSettings = settingsFromPayload(payload);
+        populateSettings(currentSettings);
+        settingsMessage.textContent = '';
+      } catch (error) {
+        settingsMessage.textContent = 'Could not load saved settings.';
+      }
+    }
+
+    function changeThreshold(kind, change) {
+      const output = kind === 'low' ? lowSetting : highSetting;
+      const minimum = kind === 'low' ? 40 : 60;
+      const maximum = kind === 'low' ? 250 : 400;
+      const next = Math.min(maximum, Math.max(minimum, Number(output.value) + change));
+      output.value = next;
+      output.textContent = next;
+      settingsMessage.textContent = '';
+    }
+
+    async function saveSettings() {
+      const candidate = {
+        low_threshold: Number(lowSetting.value),
+        high_threshold: Number(highSetting.value),
+        low_alert_sound: lowSoundSetting.checked,
+        high_alert_sound: highSoundSetting.checked
+      };
+      if (candidate.low_threshold >= candidate.high_threshold) {
+        settingsMessage.textContent = 'Low must be below high.';
+        return;
+      }
+      saveSettingsButton.disabled = true;
+      settingsMessage.textContent = 'Saving…';
+      try {
+        const response = await fetch(protectedUrl('/api/settings'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(candidate)
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'Could not save settings');
+        currentSettings = settingsFromPayload(payload);
+        if (latestReading) {
+          Object.assign(latestReading, currentSettings);
+          latestReading.range = rangeForValue(latestReading.value, currentSettings);
+          renderReading(latestReading);
+        }
+        settingsMessage.style.color = '#bfffe8';
+        settingsMessage.textContent = 'Saved for this display and your other devices.';
+        window.setTimeout(() => {
+          settingsOverlay.hidden = true;
+          settingsMessage.style.color = '';
+        }, 900);
+      } catch (error) {
+        settingsMessage.textContent = error.message || 'Could not save settings.';
+      } finally {
+        saveSettingsButton.disabled = false;
+      }
     }
     let lastLowAlertTimestamp = Number(
       window.sessionStorage.getItem('lastLowAlertTimestamp') || 0
@@ -219,6 +434,7 @@
         return;
       }
       setState(reading.range);
+      currentSettings = settingsFromPayload(reading);
       valueElement.textContent = reading.value;
       unitsElement.textContent = reading.units;
       deltaElement.textContent = reading.delta_display || '—';
@@ -271,6 +487,14 @@
 
     updateClock();
     enableSoundButton.addEventListener('click', enableAlertAudio);
+    settingsButton.addEventListener('click', openSettings);
+    cancelSettingsButton.addEventListener('click', () => { settingsOverlay.hidden = true; });
+    saveSettingsButton.addEventListener('click', saveSettings);
+    document.querySelectorAll('[data-setting]').forEach((button) => {
+      button.addEventListener('click', () => {
+        changeThreshold(button.dataset.setting, Number(button.dataset.change));
+      });
+    });
     window.setInterval(updateClock, 1000);
     pollGlucose();
   </script>

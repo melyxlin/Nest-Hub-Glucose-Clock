@@ -36,6 +36,13 @@ DIRECTION_ARROWS = {
     "NONE": "",
 }
 
+SETTINGS_FIELDS = (
+    "low_threshold",
+    "high_threshold",
+    "low_alert_sound",
+    "high_alert_sound",
+)
+
 
 def load_config(path: Path) -> dict[str, Any]:
     if path.exists():
@@ -92,6 +99,106 @@ def range_for_glucose(value: float, low: float, high: float) -> str:
     if value > high:
         return "high"
     return "in-range"
+
+
+def default_alert_settings(config: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "low_threshold": round(float(config["low_threshold"])),
+        "high_threshold": round(float(config["high_threshold"])),
+        "low_alert_sound": bool(config.get("low_alert_sound", True)),
+        "high_alert_sound": bool(config.get("high_alert_sound", True)),
+    }
+
+
+def validate_alert_settings(payload: dict[str, Any]) -> dict[str, Any]:
+    """Validate settings received from the display before storing them."""
+    try:
+        low = round(float(payload["low_threshold"]))
+        high = round(float(payload["high_threshold"]))
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("Low and high thresholds must be numbers") from error
+
+    if not 40 <= low <= 250:
+        raise ValueError("Low threshold must be between 40 and 250 mg/dL")
+    if not 60 <= high <= 400:
+        raise ValueError("High threshold must be between 60 and 400 mg/dL")
+    if low >= high:
+        raise ValueError("Low threshold must be below high threshold")
+
+    return {
+        "low_threshold": low,
+        "high_threshold": high,
+        "low_alert_sound": payload.get("low_alert_sound") is not False,
+        "high_alert_sound": payload.get("high_alert_sound") is not False,
+    }
+
+
+class MemorySettingsStore:
+    """Small local/test backend with the same interface as Firestore."""
+
+    def __init__(self, defaults: dict[str, Any]) -> None:
+        self._settings = validate_alert_settings(defaults)
+        self._lock = threading.Lock()
+
+    def get(self) -> dict[str, Any]:
+        with self._lock:
+            return dict(self._settings)
+
+    def set(self, settings: dict[str, Any]) -> dict[str, Any]:
+        normalized = validate_alert_settings(settings)
+        with self._lock:
+            self._settings = normalized
+            return dict(self._settings)
+
+
+class FirestoreSettingsStore:
+    """Persist one shared dashboard-settings document in Firestore."""
+
+    def __init__(self, defaults: dict[str, Any]) -> None:
+        from google.cloud import firestore
+
+        self._defaults = validate_alert_settings(defaults)
+        self._document = firestore.Client().collection("nest_display").document("settings")
+        self._lock = threading.Lock()
+        self._cached_settings = dict(self._defaults)
+        self._cached_at = 0.0
+
+    def get(self) -> dict[str, Any]:
+        with self._lock:
+            if time.time() - self._cached_at < 15:
+                return dict(self._cached_settings)
+            try:
+                snapshot = self._document.get()
+                if snapshot.exists:
+                    stored = snapshot.to_dict() or {}
+                    selected = {
+                        name: stored.get(name, self._defaults[name])
+                        for name in SETTINGS_FIELDS
+                    }
+                    self._cached_settings = validate_alert_settings(selected)
+                else:
+                    self._cached_settings = dict(self._defaults)
+                self._cached_at = time.time()
+            except Exception:
+                # Keep the display usable with its last known settings during a
+                # brief Firestore interruption. A failed save is still reported.
+                pass
+            return dict(self._cached_settings)
+
+    def set(self, settings: dict[str, Any]) -> dict[str, Any]:
+        normalized = validate_alert_settings(settings)
+        with self._lock:
+            self._document.set(normalized)
+            self._cached_settings = normalized
+            self._cached_at = time.time()
+            return dict(self._cached_settings)
+
+
+def create_settings_store(config: dict[str, Any]) -> Any:
+    defaults = default_alert_settings(config)
+    if os.environ.get("SETTINGS_BACKEND", "memory").strip().lower() == "firestore":
+        return FirestoreSettingsStore(defaults)
+    return MemorySettingsStore(defaults)
 
 
 def entry_timestamp_ms(entry: dict[str, Any]) -> float | None:
@@ -290,6 +397,9 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
         if path == "/api/glucose":
             self._serve_glucose()
             return
+        if path == "/api/settings":
+            self._send_json({"ok": True, **self.app.settings.get()})
+            return
         if path in ("/", "/index.html"):
             self._serve_file(WEB_ROOT / "index.html")
             return
@@ -297,6 +407,35 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
             self._serve_file(WEB_ROOT / path.lstrip("/"))
             return
         self.send_error(HTTPStatus.NOT_FOUND)
+
+    def do_POST(self) -> None:
+        path = urllib.parse.urlsplit(self.path).path
+        if not self._authorized():
+            self.send_error(HTTPStatus.FORBIDDEN, "Invalid display access key")
+            return
+        if path != "/api/settings":
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+
+        try:
+            content_length = int(self.headers.get("Content-Length", "0"))
+            if content_length < 1 or content_length > 4096:
+                raise ValueError("Invalid settings request")
+            payload = json.loads(self.rfile.read(content_length))
+            if not isinstance(payload, dict):
+                raise ValueError("Settings must be a JSON object")
+            settings = self.app.settings.set(payload)
+            self._send_json({"ok": True, **settings})
+        except (json.JSONDecodeError, ValueError) as error:
+            self._send_json(
+                {"ok": False, "error": str(error)},
+                status=HTTPStatus.BAD_REQUEST,
+            )
+        except Exception:
+            self._send_json(
+                {"ok": False, "error": "Could not save settings"},
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
+            )
 
     def _authorized(self) -> bool:
         expected = str(self.app.config.get("display_access_key", "")).strip()
@@ -309,6 +448,13 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
     def _serve_glucose(self) -> None:
         try:
             result = self.app.client.latest()
+            settings = self.app.settings.get()
+            result["range"] = range_for_glucose(
+                float(result["value"]),
+                float(settings["low_threshold"]),
+                float(settings["high_threshold"]),
+            )
+            result.update(settings)
             self._send_json({"ok": True, **result})
         except Exception as error:  # Return a safe display state, not a traceback.
             self._send_json(
@@ -356,6 +502,7 @@ class ClockServer(ThreadingHTTPServer):
         super().__init__(address, ClockRequestHandler)
         self.config = config
         self.client = NightscoutClient(config)
+        self.settings = create_settings_store(config)
 
 
 def main() -> None:
