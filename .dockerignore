@@ -1,0 +1,17 @@
+config.json
+.env
+.env.*
+.git
+.gitignore
+.venv
+.venv-cast
+__pycache__
+*.pyc
+*service-account*.json
+*credentials*.json
+test_server.py
+cast_cloud.py
+README.md
+SECURITY.md
+LICENSE
+requirements-cast.txt

@@ -1,0 +1,25 @@
+# Secrets and local configuration
+config.json
+.env
+.env.*
+!.env.example
+*service-account*.json
+*credentials*.json
+display-url.txt
+
+# Python and virtual environments
+.venv/
+.venv-cast/
+__pycache__/
+*.py[cod]
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Build and test output
+.pytest_cache/
+dist/
+build/
+*.log

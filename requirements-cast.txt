@@ -1,0 +1,2 @@
+PyChromecast==13.1.0
+urllib3<2

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Glucose Clock</title>
+  <style>
+    :root { color-scheme: dark; font-family: "Google Sans", "SF Pro Display", system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body {
+      color: #fff;
+      background: linear-gradient(145deg, #3a3d42, #656a72);
+      transition: background 500ms ease;
+    }
+    body.in-range { background: linear-gradient(145deg, #153d35, #287563); }
+    body.high { background: linear-gradient(145deg, #704019, #b56b29); }
+    body.low { background: linear-gradient(145deg, #642629, #aa4146); }
+    body.stale, body.error { background: linear-gradient(145deg, #3a3d42, #656a72); }
+    main {
+      width: 100%; height: 100%;
+      display: grid; grid-template-rows: auto 1fr auto;
+      padding: 6vh 8vw 5vh;
+      text-align: center;
+    }
+    .clock {
+      display: flex;
+      justify-content: center;
+      align-items: baseline;
+      gap: 1.5vw;
+      opacity: .82;
+    }
+    #time {
+      font-size: min(5vw, 6vh);
+      font-weight: 400;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    #date { font-size: min(3.2vw, 3.8vh); }
+    .glucose-hero {
+      align-self: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 4vw;
+    }
+    .value-block { display: flex; flex-direction: column; align-items: center; }
+    #value {
+      font-size: min(28vw, 35vh);
+      font-weight: 500;
+      letter-spacing: -0.065em;
+      line-height: .86;
+      font-variant-numeric: tabular-nums;
+    }
+    #units { margin-top: 2.5vh; font-size: min(3vw, 3.5vh); opacity: .72; }
+    .trend-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1vh;
+      min-width: 12vw;
+    }
+    #delta { font-size: min(8vw, 10vh); font-weight: 500; font-variant-numeric: tabular-nums; }
+    #arrow { font-size: min(10vw, 12vh); font-weight: 500; line-height: .8; }
+    #metadata {
+      min-height: 5vh;
+      font-size: min(3vw, 3.5vh);
+      opacity: .78;
+      white-space: nowrap;
+    }
+    #unavailable { display: none; font-size: min(7vw, 9vh); font-weight: 400; }
+    body.stale .glucose-hero > :not(#unavailable),
+    body.error .glucose-hero > :not(#unavailable) { display: none; }
+    body.stale #unavailable, body.error #unavailable { display: block; }
+    body.stale #metadata, body.error #metadata { font-size: min(3.5vw, 4vh); opacity: 1; }
+    #enable-sound {
+      position: fixed;
+      top: 3vh;
+      right: 3vw;
+      z-index: 10;
+      padding: 1.5vh 2.2vw;
+      border: 1px solid rgba(255, 255, 255, .55);
+      border-radius: 999px;
+      color: #fff;
+      background: rgba(0, 0, 0, .28);
+      font: inherit;
+      font-size: min(2.7vw, 3.3vh);
+      cursor: pointer;
+    }
+    #enable-sound:active { background: rgba(255, 255, 255, .2); }
+    #enable-sound[hidden] { display: none; }
+    @media (prefers-reduced-motion: reduce) { body { transition: none; } }
+  </style>
+</head>
+<body class="stale">
+  <button id="enable-sound" type="button">Tap to enable alerts</button>
+  <audio id="alert-audio" preload="auto"></audio>
+  <main>
+    <header class="clock" aria-label="Current time and date">
+      <div id="time">--:--</div>
+      <div id="date">Loading…</div>
+    </header>
+    <section class="glucose-hero" aria-live="polite" aria-label="Current glucose and trend">
+      <div class="value-block">
+        <span id="value"></span>
+        <span id="units">mg/dL</span>
+      </div>
+      <div class="trend-block">
+        <span id="delta"></span>
+        <span id="arrow" aria-hidden="true"></span>
+      </div>
+      <span id="unavailable">Glucose unavailable</span>
+    </section>
+    <footer id="metadata">Connecting to Nightscout…</footer>
+  </main>
+  <script>
+    const timeElement = document.getElementById('time');
+    const dateElement = document.getElementById('date');
+    const valueElement = document.getElementById('value');
+    const unitsElement = document.getElementById('units');
+    const deltaElement = document.getElementById('delta');
+    const arrowElement = document.getElementById('arrow');
+    const metadataElement = document.getElementById('metadata');
+    const enableSoundButton = document.getElementById('enable-sound');
+    const alertAudio = document.getElementById('alert-audio');
+    let latestReading = null;
+    let nextPollMilliseconds = 60000;
+    let alertAudioEnabled = false;
+    const pendingAlertTimestamp = { low: 0, high: 0 };
+    const displayKey = new URLSearchParams(window.location.search).get('key');
+
+    function protectedUrl(path) {
+      if (!displayKey) return path;
+      const separator = path.includes('?') ? '&' : '?';
+      return `${path}${separator}key=${encodeURIComponent(displayKey)}`;
+    }
+    let lastLowAlertTimestamp = Number(
+      window.sessionStorage.getItem('lastLowAlertTimestamp') || 0
+    );
+    let lastHighAlertTimestamp = Number(
+      window.sessionStorage.getItem('lastHighAlertTimestamp') || 0
+    );
+
+    async function playAlertTone(kind) {
+      try {
+        alertAudio.pause();
+        alertAudio.src = protectedUrl(`/audio/${kind}.wav`);
+        alertAudio.currentTime = 0;
+        await alertAudio.play();
+        return true;
+      } catch (error) {
+        console.warn('Glucose alert sound could not play', error);
+        return false;
+      }
+    }
+
+    async function triggerGlucoseAlert(kind, timestamp) {
+      if (pendingAlertTimestamp[kind] === timestamp) return;
+      pendingAlertTimestamp[kind] = timestamp;
+      const played = await playAlertTone(kind);
+      if (played) {
+        if (kind === 'low') {
+          lastLowAlertTimestamp = timestamp;
+          window.sessionStorage.setItem('lastLowAlertTimestamp', String(timestamp));
+        } else {
+          lastHighAlertTimestamp = timestamp;
+          window.sessionStorage.setItem('lastHighAlertTimestamp', String(timestamp));
+        }
+      }
+      pendingAlertTimestamp[kind] = 0;
+    }
+
+    async function enableAlertAudio() {
+      try {
+        const played = await playAlertTone('test');
+        if (!played) throw new Error('Audio permission was blocked');
+
+        alertAudioEnabled = true;
+        enableSoundButton.textContent = 'Sound on ✓';
+        window.setTimeout(() => { enableSoundButton.hidden = true; }, 1800);
+      } catch (error) {
+        enableSoundButton.textContent = 'Sound blocked — tap again';
+        console.warn('Alert audio could not be enabled', error);
+      }
+    }
+
+    function updateClock() {
+      const now = new Date();
+      timeElement.textContent = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric', minute: '2-digit'
+      }).format(now);
+      dateElement.textContent = new Intl.DateTimeFormat('en-US', {
+        weekday: 'long', month: 'long', day: 'numeric'
+      }).format(now);
+      if (latestReading) renderReading(latestReading);
+    }
+
+    function formatAge(seconds) {
+      if (seconds < 45) return 'just now';
+      const minutes = Math.max(1, Math.round(seconds / 60));
+      return `${minutes} min ago`;
+    }
+
+    function setState(state) {
+      document.body.className = state;
+    }
+
+    function renderReading(reading) {
+      const liveAge = Math.max(0, Math.round(Date.now() / 1000 - reading.timestamp));
+      const isStale = liveAge > reading.stale_after_minutes * 60;
+      if (isStale) {
+        setState('stale');
+        valueElement.textContent = '';
+        deltaElement.textContent = '';
+        arrowElement.textContent = '';
+        metadataElement.textContent = `Glucose unavailable · last update ${formatAge(liveAge)}`;
+        return;
+      }
+      setState(reading.range);
+      valueElement.textContent = reading.value;
+      unitsElement.textContent = reading.units;
+      deltaElement.textContent = reading.delta_display || '—';
+      arrowElement.textContent = reading.arrow || '';
+      metadataElement.textContent = `${reading.units} · ${formatAge(liveAge)}`;
+      if (!reading.low_alert_sound && !reading.high_alert_sound) {
+        enableSoundButton.hidden = true;
+      }
+
+      // Polling occurs every minute, but sound only once for each distinct
+      // Nightscout low reading (normally one new reading every five minutes).
+      if (
+        alertAudioEnabled &&
+        reading.low_alert_sound &&
+        reading.range === 'low' &&
+        reading.timestamp > lastLowAlertTimestamp
+      ) {
+        triggerGlucoseAlert('low', reading.timestamp);
+      }
+
+      if (
+        alertAudioEnabled &&
+        reading.high_alert_sound &&
+        reading.range === 'high' &&
+        reading.timestamp > lastHighAlertTimestamp
+      ) {
+        triggerGlucoseAlert('high', reading.timestamp);
+      }
+    }
+
+    async function pollGlucose() {
+      try {
+        const response = await fetch(protectedUrl('/api/glucose'), { cache: 'no-store' });
+        const reading = await response.json();
+        if (!response.ok || !reading.ok) throw new Error(reading.error || 'Reading unavailable');
+        latestReading = reading;
+        nextPollMilliseconds = Math.max(30000, reading.poll_seconds * 1000);
+        renderReading(reading);
+      } catch (error) {
+        latestReading = null;
+        setState('error');
+        valueElement.textContent = '';
+        deltaElement.textContent = '';
+        arrowElement.textContent = '';
+        metadataElement.textContent = 'Glucose unavailable';
+      } finally {
+        window.setTimeout(pollGlucose, nextPollMilliseconds);
+      }
+    }
+
+    updateClock();
+    enableSoundButton.addEventListener('click', enableAlertAudio);
+    window.setInterval(updateClock, 1000);
+    pollGlucose();
+  </script>
+</body>
+</html>
