@@ -158,7 +158,8 @@ class FirestoreSettingsStore:
         from google.cloud import firestore
 
         self._defaults = validate_alert_settings(defaults)
-        self._document = firestore.Client().collection("nest_display").document("settings")
+        self._document = firestore.Client().collection(
+            "nest_display").document("settings")
         self._lock = threading.Lock()
         self._cached_settings = dict(self._defaults)
         self._cached_at = 0.0
@@ -275,7 +276,8 @@ def normalize_entry(
         previous_value = previous_entry.get("sgv", previous_entry.get("mbg"))
         previous_timestamp_ms = entry_timestamp_ms(previous_entry)
         if previous_value is not None and previous_timestamp_ms is not None:
-            reading_gap_seconds = (float(timestamp_ms) - float(previous_timestamp_ms)) / 1000
+            reading_gap_seconds = (
+                float(timestamp_ms) - float(previous_timestamp_ms)) / 1000
             # A CGM delta is meaningful only when the prior sample is distinct and recent.
             if 0 < reading_gap_seconds <= 10 * 60:
                 delta = round(value - float(previous_value))
@@ -329,7 +331,8 @@ class NightscoutClient:
             )
 
         with self._lock:
-            cache_seconds = min(45, max(10, int(self.config["poll_seconds"]) - 5))
+            cache_seconds = min(
+                45, max(10, int(self.config["poll_seconds"]) - 5))
             if self._cached_result and time.time() - self._cached_at < cache_seconds:
                 result = dict(self._cached_result)
                 result["age_seconds"] = max(
@@ -344,7 +347,75 @@ class NightscoutClient:
             self._cached_at = time.time()
             self._cached_result = dict(result)
             return result
+    
+    def history(self, count: int = 288) -> list[dict[str,Any]]:
+        """Fetch recent glucose history for graphing"""
+        if self.config.get("demo_mode"):
+                now = int(time.time())
+                return[
+                    {
+                        "value": 110 + ((index % 12) - 6) * 3,
+                        "timestamp": now - ((count - index) * 5 * 60),
+                    }
+                    for index in range(count)
+                ]
+        
+        base_url = str(self.config["nightscout_url"]).strip().rstrip("/")
+        if not base_url:
+            raise RuntimeError("nightscout_url is missing from config.json")
+        
+        token = str(self.config.get("nightscout_token", "")).strip()
+        
+        params = {"count": str(count)}
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "NestHubGlucoseClock/1.0",
+        }
+        
+        if token and self.config.get("auth_mode") == "header":
+            headers["Authorization"] = f"Bearer {token}"
+        elif token:
+            params["token"] = token
+        
+        endpoint = (
+            f"{base_url}/api/v1/entries/sgv.json?"
+            f"{urllib.parse.urlencode(params)}"
+        )
+        
+        request = urllib.request.Request(endpoint, headers=headers)
+        
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                payload = json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise RuntimeError("Nightscout rejected the access token") from error
+            raise RuntimeError(f"Nightscout returned HTTP {error.code}") from error
+        except urllib.error.URLError as error:
+            raise RuntimeError("Could not connect to Nightscout") from error
+        
+        if not isinstance(payload, list):
+            raise RuntimeError("Nightscout returned invalid glucose history")
+        
+        readings = []
+        
+        for entry in reversed(payload):
+            raw_value = entry.get("sgv", entry.get("mbg"))
+            timestamp_ms = entry_timestamp_ms(entry)
+            
+            if raw_value is None or timestamp_ms is None:
+                continue
+            
+            readings.append(
+                {
+                    "value": round(float(raw_value)),
+                    "timestamp": int(float(timestamp_ms) / 1000),
+                }
+            )
+        
+        return readings
 
+    
     def _fetch(self) -> dict[str, Any]:
         base_url = str(self.config["nightscout_url"]).strip().rstrip("/")
         if not base_url:
@@ -354,7 +425,8 @@ class NightscoutClient:
         # Fetch enough history to step past duplicate uploads from integrations
         # such as Dexcom and share2, which often publish the same sample twice.
         params = {"count": "12"}
-        headers = {"Accept": "application/json", "User-Agent": "NestHubGlucoseClock/1.0"}
+        headers = {"Accept": "application/json",
+                   "User-Agent": "NestHubGlucoseClock/1.0"}
 
         if token and self.config.get("auth_mode") == "header":
             headers["Authorization"] = f"Bearer {token}"
@@ -368,8 +440,10 @@ class NightscoutClient:
                 payload = json.load(response)
         except urllib.error.HTTPError as error:
             if error.code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
-                raise RuntimeError("Nightscout rejected the access token") from error
-            raise RuntimeError(f"Nightscout returned HTTP {error.code}") from error
+                raise RuntimeError(
+                    "Nightscout rejected the access token") from error
+            raise RuntimeError(
+                f"Nightscout returned HTTP {error.code}") from error
         except urllib.error.URLError as error:
             raise RuntimeError("Could not connect to Nightscout") from error
 
@@ -396,6 +470,9 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/glucose":
             self._serve_glucose()
+            return
+        if path == "/api/history":
+            self._serve_history()
             return
         if path == "/api/settings":
             self._send_json({"ok": True, **self.app.settings.get()})
@@ -465,6 +542,24 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
                 },
                 status=HTTPStatus.SERVICE_UNAVAILABLE,
             )
+    
+    def _serve_history(self) -> None:
+        try:
+            readings = self.app.client.history()
+            
+            self._send_json(
+                {
+                    "ok": True, 
+                    "readings": readings,
+                }
+            )
+        except Exception as error:
+            self._send_json (
+                {
+                    "ok": True, 
+                    "readings": readings,
+                }
+            )
 
     def _serve_file(self, path: Path) -> None:
         try:
@@ -473,9 +568,11 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         self.send_response(HTTPStatus.OK)
-        self.send_header("Content-Type", mimetypes.guess_type(path.name)[0] or "text/plain")
+        self.send_header(
+            "Content-Type", mimetypes.guess_type(path.name)[0] or "text/plain")
         self.send_header("Content-Length", str(len(payload)))
-        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.send_header(
+            "Cache-Control", "no-store, no-cache, must-revalidate")
         self.send_header("Pragma", "no-cache")
         self.send_header("Expires", "0")
         self.end_headers()
@@ -506,10 +603,12 @@ class ClockServer(ThreadingHTTPServer):
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Serve the Nest Hub glucose clock")
+    parser = argparse.ArgumentParser(
+        description="Serve the Nest Hub glucose clock")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH)
     parser.add_argument("--host", default="0.0.0.0")
-    parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8765")))
+    parser.add_argument("--port", type=int,
+                        default=int(os.environ.get("PORT", "8765")))
     args = parser.parse_args()
 
     if not args.config.exists() and not os.environ.get("NIGHTSCOUT_URL"):

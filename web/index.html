@@ -1,29 +1,61 @@
 <!doctype html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <title>Glucose Clock</title>
   <style>
-    :root { color-scheme: dark; font-family: "Google Sans", "SF Pro Display", system-ui, sans-serif; }
-    * { box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    :root {
+      color-scheme: dark;
+      font-family: "Google Sans", "SF Pro Display", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+    }
+
     body {
       color: #fff;
       background: linear-gradient(145deg, #3a3d42, #656a72);
       transition: background 500ms ease;
     }
-    body.in-range { background: linear-gradient(145deg, #153d35, #287563); }
-    body.high { background: linear-gradient(145deg, #704019, #b56b29); }
-    body.low { background: linear-gradient(145deg, #642629, #aa4146); }
-    body.stale, body.error { background: linear-gradient(145deg, #3a3d42, #656a72); }
+
+    body.in-range {
+      background: linear-gradient(145deg, #153d35, #287563);
+    }
+
+    body.high {
+      background: linear-gradient(145deg, #704019, #b56b29);
+    }
+
+    body.low {
+      background: linear-gradient(145deg, #642629, #aa4146);
+    }
+
+    body.stale,
+    body.error {
+      background: linear-gradient(145deg, #3a3d42, #656a72);
+    }
+
     main {
-      width: 100%; height: 100%;
-      display: grid; grid-template-rows: auto 1fr auto;
-      padding: 6vh 8vw 5vh;
+      width: 100%;
+      height: 100%;
+      display: grid;
+      grid-template-rows: auto 1fr auto auto;
+      padding: 4vh 8vw 3vh;
       text-align: center;
     }
+
     .clock {
       display: flex;
       justify-content: center;
@@ -31,6 +63,7 @@
       gap: 1.5vw;
       opacity: .82;
     }
+
     #time {
       font-size: min(5vw, 6vh);
       font-weight: 400;
@@ -38,7 +71,11 @@
       line-height: 1;
       font-variant-numeric: tabular-nums;
     }
-    #date { font-size: min(3.2vw, 3.8vh); }
+
+    #date {
+      font-size: min(3.2vw, 3.8vh);
+    }
+
     .glucose-hero {
       align-self: center;
       display: flex;
@@ -46,7 +83,13 @@
       align-items: center;
       gap: 4vw;
     }
-    .value-block { display: flex; flex-direction: column; align-items: center; }
+
+    .value-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
     #value {
       font-size: min(28vw, 35vh);
       font-weight: 500;
@@ -54,7 +97,13 @@
       line-height: .86;
       font-variant-numeric: tabular-nums;
     }
-    #units { margin-top: 2.5vh; font-size: min(3vw, 3.5vh); opacity: .72; }
+
+    #units {
+      margin-top: 2.5vh;
+      font-size: min(3vw, 3.5vh);
+      opacity: .72;
+    }
+
     .trend-block {
       display: flex;
       flex-direction: column;
@@ -62,19 +111,49 @@
       gap: 1vh;
       min-width: 12vw;
     }
-    #delta { font-size: min(8vw, 10vh); font-weight: 500; font-variant-numeric: tabular-nums; }
-    #arrow { font-size: min(10vw, 12vh); font-weight: 500; line-height: .8; }
+
+    #delta {
+      font-size: min(8vw, 10vh);
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #arrow {
+      font-size: min(10vw, 12vh);
+      font-weight: 500;
+      line-height: .8;
+    }
+
     #metadata {
-      min-height: 5vh;
+      min-height: 4vh;
       font-size: min(3vw, 3.5vh);
       opacity: .78;
       white-space: nowrap;
+      margin-top: 1vh;
     }
-    #unavailable { display: none; font-size: min(7vw, 9vh); font-weight: 400; }
-    body.stale .glucose-hero > :not(#unavailable),
-    body.error .glucose-hero > :not(#unavailable) { display: none; }
-    body.stale #unavailable, body.error #unavailable { display: block; }
-    body.stale #metadata, body.error #metadata { font-size: min(3.5vw, 4vh); opacity: 1; }
+
+    #unavailable {
+      display: none;
+      font-size: min(7vw, 9vh);
+      font-weight: 400;
+    }
+
+    body.stale .glucose-hero> :not(#unavailable),
+    body.error .glucose-hero> :not(#unavailable) {
+      display: none;
+    }
+
+    body.stale #unavailable,
+    body.error #unavailable {
+      display: block;
+    }
+
+    body.stale #metadata,
+    body.error #metadata {
+      font-size: min(3.5vw, 4vh);
+      opacity: 1;
+    }
+
     #enable-sound {
       position: fixed;
       top: 3vh;
@@ -89,8 +168,15 @@
       font-size: min(2.7vw, 3.3vh);
       cursor: pointer;
     }
-    #enable-sound:active { background: rgba(255, 255, 255, .2); }
-    #enable-sound[hidden] { display: none; }
+
+    #enable-sound:active {
+      background: rgba(255, 255, 255, .2);
+    }
+
+    #enable-sound[hidden] {
+      display: none;
+    }
+
     #settings-button {
       position: fixed;
       right: 3vw;
@@ -105,7 +191,11 @@
       font-size: min(2.7vw, 3.3vh);
       cursor: pointer;
     }
-    #settings-button:active { background: rgba(255, 255, 255, .2); }
+
+    #settings-button:active {
+      background: rgba(255, 255, 255, .2);
+    }
+
     #settings-overlay {
       position: fixed;
       inset: 0;
@@ -116,7 +206,11 @@
       background: rgba(8, 12, 16, .78);
       backdrop-filter: blur(10px);
     }
-    #settings-overlay[hidden] { display: none; }
+
+    #settings-overlay[hidden] {
+      display: none;
+    }
+
     .settings-card {
       width: min(720px, 90vw);
       max-height: 92vh;
@@ -127,7 +221,12 @@
       background: #1f252b;
       box-shadow: 0 2vh 8vh rgba(0, 0, 0, .45);
     }
-    .settings-card h1 { margin: 0 0 3vh; font-size: min(5vw, 6vh); }
+
+    .settings-card h1 {
+      margin: 0 0 3vh;
+      font-size: min(5vw, 6vh);
+    }
+
     .setting-row {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -135,8 +234,18 @@
       gap: 3vw;
       margin: 2vh 0;
     }
-    .setting-label { text-align: left; font-size: min(3.2vw, 4vh); }
-    .stepper { display: flex; align-items: center; gap: 1.8vw; }
+
+    .setting-label {
+      text-align: left;
+      font-size: min(3.2vw, 4vh);
+    }
+
+    .stepper {
+      display: flex;
+      align-items: center;
+      gap: 1.8vw;
+    }
+
     .stepper button {
       width: min(9vw, 10vh);
       height: min(9vw, 10vh);
@@ -147,15 +256,33 @@
       font-size: min(6vw, 7vh);
       line-height: 1;
     }
+
     .threshold-value {
       min-width: 12vw;
       font-size: min(5vw, 6vh);
       font-weight: 600;
       font-variant-numeric: tabular-nums;
     }
-    .sound-toggle { width: min(5vw, 6vh); height: min(5vw, 6vh); accent-color: #48c79a; }
-    #settings-message { min-height: 3vh; margin: 2vh 0; color: #ffd1d1; font-size: min(2.6vw, 3.2vh); }
-    .settings-actions { display: flex; justify-content: flex-end; gap: 2vw; }
+
+    .sound-toggle {
+      width: min(5vw, 6vh);
+      height: min(5vw, 6vh);
+      accent-color: #48c79a;
+    }
+
+    #settings-message {
+      min-height: 3vh;
+      margin: 2vh 0;
+      color: #ffd1d1;
+      font-size: min(2.6vw, 3.2vh);
+    }
+
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 2vw;
+    }
+
     .settings-actions button {
       padding: 1.6vh 3.2vw;
       border: 1px solid rgba(255, 255, 255, .4);
@@ -165,10 +292,76 @@
       font: inherit;
       font-size: min(3vw, 3.7vh);
     }
-    .settings-actions .save { border-color: #48c79a; background: #17664f; }
-    @media (prefers-reduced-motion: reduce) { body { transition: none; } }
+
+    .settings-actions .save {
+      border-color: #48c79a;
+      background: #17664f;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      body {
+        transition: none;
+      }
+    }
+
+    .glucose-history {
+      width: 82%;
+      justify-self: center;
+      align-self: end;
+      margin-bottom: 3vh;
+    }
+
+    #history-chart {
+      width: 100%;
+      height: 16vh;
+      overflow: visible;
+    }
+
+    .history-range {
+      fill: rgba(255, 255, 255, .08);
+    }
+
+    .history-line {
+      fill: none;
+      stroke: rgba(255, 255, 255, .95);
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .history-label {
+      fill: rgba(255, 255, 255, .8);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .history-high-line {
+      stroke: #ffd54a;
+      stroke-width: 1.8;
+      stroke-dasharray: 8 6;
+    }
+
+    .history-low-line {
+      stroke: #ff4d4d;
+      stroke-width: 1.8;
+      stroke-dasharray: 8 6;
+    }
+
+    .history-high-label {
+      fill: #ffd54a;
+    }
+
+    .history-low-label {
+      fill: #ff4d4d;
+    }
+
+    .history-empty {
+      font-size: min(2.7vw, 3vh);
+      opacity: .6;
+    }
   </style>
 </head>
+
 <body class="stale">
   <button id="settings-button" type="button" aria-haspopup="dialog">Settings</button>
   <button id="enable-sound" type="button">Tap to enable alerts</button>
@@ -223,6 +416,14 @@
       </div>
       <span id="unavailable">Glucose unavailable</span>
     </section>
+    <section class="glucose-history" aria-label="Today's glucose history">
+      <svg id="history-chart" viewBox="0 0 800 140" preserveAspectRatio="none" role="img"
+        aria-label="Today's glucose graph"></svg>
+
+      <div id="history-empty" class="history-empty" hidden>
+        No glucose history available
+      </div>
+    </section>
     <footer id="metadata">Connecting to Nightscout…</footer>
   </main>
   <script>
@@ -244,7 +445,10 @@
     const saveSettingsButton = document.getElementById('save-settings');
     const enableSoundButton = document.getElementById('enable-sound');
     const alertAudio = document.getElementById('alert-audio');
+    const historyChart = document.getElementById('history-chart');
+    const historyEmpty = document.getElementById('history-empty');
     let latestReading = null;
+    let latestHistory = [];
     let nextPollMilliseconds = 60000;
     let alertAudioEnabled = false;
     let currentSettings = {
@@ -338,6 +542,9 @@
           Object.assign(latestReading, currentSettings);
           latestReading.range = rangeForValue(latestReading.value, currentSettings);
           renderReading(latestReading);
+        }
+        if (latestHistory.length > 0) {
+          renderHistory(latestHistory);
         }
         settingsMessage.style.color = '#bfffe8';
         settingsMessage.textContent = 'Saved for this display and your other devices.';
@@ -485,6 +692,244 @@
       }
     }
 
+    function renderHistory(readings) {
+      if (!Array.isArray(readings) || readings.length < 2) {
+        historyChart.innerHTML = '';
+        historyChart.hidden = true;
+        historyEmpty.hidden = false;
+        return;
+      }
+
+      const now = Date.now() / 1000;
+      const sixHoursAgo = now - (6 * 60 * 60);
+
+      const graphReadings = readings
+        .filter(reading => {
+          const value = Number(reading.value);
+          const timestamp = Number(reading.timestamp);
+
+          return (
+            Number.isFinite(value) &&
+            Number.isFinite(timestamp) &&
+            timestamp >= sixHoursAgo &&
+            timestamp <= now
+          );
+        })
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+      if (graphReadings.length < 2) {
+        historyChart.innerHTML = '';
+        historyChart.hidden = true;
+        historyEmpty.hidden = false;
+        return;
+      }
+
+      historyChart.hidden = false;
+      historyEmpty.hidden = true;
+
+      const width = 800;
+      const height = 180;
+
+      const paddingLeft = 44;
+      const paddingRight = 12;
+      const paddingTop = 8;
+      const paddingBottom = 32;
+
+      const minimumValue = 40;
+      const maximumValue = 300;
+
+      const lowThreshold = Number(currentSettings.low_threshold);
+      const highThreshold = Number(currentSettings.high_threshold);
+
+      const plotWidth = width - paddingLeft - paddingRight;
+      const plotHeight = height - paddingTop - paddingBottom;
+
+      function xForTimestamp(timestamp) {
+        return (
+          paddingLeft +
+          ((timestamp - sixHoursAgo) / (now - sixHoursAgo)) * plotWidth
+        );
+      }
+
+      function yForValue(value) {
+        const clamped = Math.max(
+          minimumValue,
+          Math.min(maximumValue, value)
+        );
+
+        return (
+          paddingTop +
+          ((maximumValue - clamped) /
+            (maximumValue - minimumValue)) *
+          plotHeight
+        );
+      }
+
+      const points = graphReadings
+        .map(reading => {
+          return `${xForTimestamp(Number(reading.timestamp)).toFixed(1)},${yForValue(
+            Number(reading.value)
+          ).toFixed(1)}`;
+        })
+        .join(' ');
+
+      const highY = yForValue(highThreshold);
+      const lowY = yForValue(lowThreshold);
+
+      const rangeTop = Math.min(highY, lowY);
+      const rangeHeight = Math.abs(lowY - highY);
+
+      const hourLabels = [
+        { hoursAgo: 6, label: '6h ago' },
+        { hoursAgo: 5, label: '5h' },
+        { hoursAgo: 4, label: '4h' },
+        { hoursAgo: 3, label: '3h' },
+        { hoursAgo: 2, label: '2h' },
+        { hoursAgo: 1, label: '1h' },
+        { hoursAgo: 0, label: 'Now' }
+      ];
+
+      const timeLabels = hourLabels
+        .map(({ hoursAgo, label }) => {
+          const timestamp = now - (hoursAgo * 60 * 60);
+          const x = xForTimestamp(timestamp);
+
+          return `
+        <line
+          x1="${x}"
+          y1="${height - paddingBottom}"
+          x2="${x}"
+          y2="${height - paddingBottom + 5}"
+          stroke="rgba(255,255,255,.45)"
+          stroke-width="1"
+        />
+
+        <text
+          class="history-label"
+          x="${x}"
+          y="${height - 10}"
+          text-anchor="${hoursAgo === 6
+              ? 'start'
+              : hoursAgo === 0
+                ? 'end'
+                : 'middle'
+            }"
+        >
+          ${label}
+        </text>
+      `;
+        })
+        .join('');
+
+      historyChart.innerHTML = `
+    <rect
+      class="history-range"
+      x="${paddingLeft}"
+      y="${rangeTop}"
+      width="${plotWidth}"
+      height="${rangeHeight}"
+    />
+
+    <line
+      class="history-high-line"
+      x1="${paddingLeft}"
+      y1="${highY}"
+      x2="${width - paddingRight}"
+      y2="${highY}"
+    />
+
+    <line
+      class="history-low-line"
+      x1="${paddingLeft}"
+      y1="${lowY}"
+      x2="${width - paddingRight}"
+      y2="${lowY}"
+    />
+
+    <line
+      x1="${paddingLeft}"
+      y1="${paddingTop}"
+      x2="${paddingLeft}"
+      y2="${height - paddingBottom}"
+      stroke="rgba(255,255,255,.45)"
+      stroke-width="1"
+    />
+
+    <line
+      x1="${paddingLeft}"
+      y1="${height - paddingBottom}"
+      x2="${width - paddingRight}"
+      y2="${height - paddingBottom}"
+      stroke="rgba(255,255,255,.45)"
+      stroke-width="1"
+    />
+
+    <text
+      class="history-label"
+      x="${paddingLeft - 8}"
+      y="${yForValue(300) + 4}"
+      text-anchor="end"
+    >
+      300
+    </text>
+
+    <text
+      class="history-high-label history-label"
+      x="${paddingLeft - 8}"
+      y="${highY + 4}"
+      text-anchor="end"
+    >
+      ${highThreshold}
+    </text>
+
+    <text
+      class="history-low-label history-label"
+      x="${paddingLeft - 8}"
+      y="${lowY + 4}"
+      text-anchor="end"
+    >
+      ${lowThreshold}
+    </text>
+
+    <text
+      class="history-label"
+      x="${paddingLeft - 8}"
+      y="${yForValue(40) + 4}"
+      text-anchor="end"
+    >
+      40
+    </text>
+
+    <polyline
+      class="history-line"
+      points="${points}"
+    />
+
+    ${timeLabels}
+  `;
+    }
+
+    async function pollHistory() {
+      try {
+        const response = await fetch(
+          protectedUrl('/api/history'),
+          { cache: 'no-store' }
+        );
+
+        const payload = await response.json();
+
+        if (!response.ok || !payload.ok) {
+          throw new Error(payload.error || 'History unavailable');
+        }
+        latestHistory = payload.readings;
+        renderHistory(latestHistory);
+      } catch (error) {
+        console.warn('Could not load glucose history', error);
+      } finally {
+        window.setTimeout(pollHistory, 5 * 60 * 1000);
+      }
+    }
+
     updateClock();
     enableSoundButton.addEventListener('click', enableAlertAudio);
     settingsButton.addEventListener('click', openSettings);
@@ -497,6 +942,8 @@
     });
     window.setInterval(updateClock, 1000);
     pollGlucose();
+    pollHistory();
   </script>
 </body>
+
 </html>
