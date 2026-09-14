@@ -463,30 +463,39 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         path = urllib.parse.urlsplit(self.path).path
+
         if path == "/health":
             self._send_json({"ok": True})
             return
-        if not self._authorized():
-            self.send_error(HTTPStatus.FORBIDDEN, "Invalid display access key")
-            return
-        if path == "/api/glucose":
-            self._serve_glucose()
-            return
-        if path == "/api/history":
-            self._serve_history()
-            return
-        if path == "/api/settings":
-            self._send_json({"ok": True, **self.app.settings.get()})
-            return
-        if path in ("/", "/index.html"):
-            self._serve_file(WEB_ROOT / "index.html")
-            return
+
         if path.startswith("/css/") or path.startswith("/js/"):
             self._serve_file(WEB_ROOT / path.lstrip("/"))
             return
+
         if path in ("/audio/test.wav", "/audio/high.wav", "/audio/low.wav"):
             self._serve_file(WEB_ROOT / path.lstrip("/"))
             return
+
+        if not self._authorized():
+            self.send_error(HTTPStatus.FORBIDDEN, "Invalid display access key")
+            return
+
+        if path == "/api/glucose":
+            self._serve_glucose()
+            return
+
+        if path == "/api/history":
+            self._serve_history()
+            return
+
+        if path == "/api/settings":
+            self._send_json({"ok": True, **self.app.settings.get()})
+            return
+
+        if path in ("/", "/index.html"):
+            self._serve_file(WEB_ROOT / "index.html")
+            return
+
         self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
