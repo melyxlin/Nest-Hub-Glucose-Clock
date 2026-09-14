@@ -9,8 +9,9 @@ __pycache__
 *.pyc
 *service-account*.json
 *credentials*.json
-test_server.py
-cast_cloud.py
+server/test_server.py
+server/cast_cloud.py
+server/cast_clock.py
 README.md
 SECURITY.md
 LICENSE

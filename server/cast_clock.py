@@ -13,8 +13,7 @@ import pychromecast
 from pychromecast.controllers.dashcast import DashCastController
 
 
-ROOT = Path(__file__).resolve().parent
-
+ROOT = Path(__file__).resolve().parent.parent
 
 def local_ip_for(remote_host: str) -> str:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

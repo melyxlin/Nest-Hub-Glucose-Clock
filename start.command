@@ -10,4 +10,4 @@ if [[ ! -f config.json ]]; then
   exit 0
 fi
 
-caffeinate -i python3 server.py
+caffeinate -i .venv/bin/python3 server/server.py

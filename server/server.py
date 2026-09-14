@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parent
+SERVER_ROOT = Path(__file__).resolve().parent
+ROOT = SERVER_ROOT.parent
 WEB_ROOT = ROOT / "web"
 DEFAULT_CONFIG_PATH = ROOT / "config.json"
 
@@ -479,6 +480,9 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
             return
         if path in ("/", "/index.html"):
             self._serve_file(WEB_ROOT / "index.html")
+            return
+        if path.startswith("/css/") or path.startswith("/js/"):
+            self._serve_file(WEB_ROOT / path.lstrip("/"))
             return
         if path in ("/audio/test.wav", "/audio/high.wav", "/audio/low.wav"):
             self._serve_file(WEB_ROOT / path.lstrip("/"))

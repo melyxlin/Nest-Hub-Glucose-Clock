@@ -6,8 +6,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-COPY server.py ./server.py
+COPY server/server.py ./server/server.py
 COPY web ./web
 
 EXPOSE 8080
-CMD ["python", "server.py"]
+CMD ["python", "server/server.py"]

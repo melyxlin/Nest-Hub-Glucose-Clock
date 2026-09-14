@@ -8,4 +8,4 @@ if [[ ! -x .venv/bin/python3 ]]; then
   exit 1
 fi
 
-.venv/bin/python3 server/cast_clock.py
+.venv/bin/python3 server/cast_cloud.py

@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from server import normalize_entry, range_for_glucose, select_previous_entry
+from server.server import normalize_entry, range_for_glucose, select_previous_entry
 
 
 class GlucoseClockTests(unittest.TestCase):

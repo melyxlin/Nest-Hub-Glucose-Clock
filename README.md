@@ -126,7 +126,8 @@ python3 -m pip install -r requirements-cast.txt
 Cast the private display URL:
 
 ```bash
-python3 cast_cloud.py "$DISPLAY_URL" "Your Nest Hub name"
+./cast-cloud.command
+python3 -m py_compile server/server.py server/cast_cloud.py
 ```
 
 The computer can shut down after the hosted page appears. A Nest Hub Cast
@@ -175,7 +176,7 @@ The web service uses the Python standard library. Run tests with:
 
 ```bash
 python3 -m unittest -v
-python3 -m py_compile server.py cast_cloud.py
+python3 -m py_compile server/server.py server/cast_cloud.py
 ```
 
 See [SECURITY.md](SECURITY.md) before publishing or reporting an issue.
