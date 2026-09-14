@@ -30,11 +30,94 @@ primary source before making treatment decisions.
 
 ## Requirements
 
+### Local use
+
 - A working Nightscout site and read-only access token
+- macOS
+- Homebrew
+- Python 3.13
+- A Nest Hub and Mac on the same Wi-Fi if you want to cast the display
+
+### Google Cloud deployment
+
+In addition to the local requirements:
+
 - A Google Cloud project with billing enabled
 - Google Cloud Shell or the Google Cloud CLI
-- A Nest Hub and a computer on the same Wi-Fi for the initial cast
-- Python 3.9 or later for the Cast helper
+
+## Run locally
+
+Clone the repository and enter the project directory:
+
+```bash
+git clone https://github.com/melyxlin/Nest-Hub-Glucose-Clock.git
+cd Nest-Hub-Glucose-Clock
+```
+
+Install Python 3.13 with Homebrew if it is not already installed:
+
+```bash
+brew install python@3.13
+```
+
+Run the setup script:
+
+```bash
+./setup.command
+```
+
+This creates a local `.venv` and installs the required Python packages.
+
+### Configure Nightscout
+
+Create the local configuration file:
+
+```bash
+cp config.example.json config.json
+chmod 600 config.json
+```
+
+Open it:
+
+```bash
+open -e config.json
+```
+
+Add your Nightscout configuration and Nest Hub name. `config.json` is ignored by
+Git and should not be committed because it can contain private credentials.
+
+### Start the local server
+
+Run:
+
+```bash
+./start.command
+```
+
+The display will be available at:
+
+```text
+http://localhost:8765/
+```
+
+Open it in a browser to verify that glucose data, the graph, settings, and
+alerts are working.
+
+The local server must remain running while using the local display.
+
+## Cast the local display
+
+With the Mac and Nest Hub connected to the same Wi-Fi, run:
+
+```bash
+./cast.command
+```
+
+The Cast helper reads the Nest Hub name from `config.json` and tells the Hub to
+load the display from the local server.
+
+Because the Nest Hub is loading the page from the Mac, `./start.command` must
+remain running while using the local cast.
 
 ## Deploy to Google Cloud Run
 
@@ -114,25 +197,31 @@ Do not publish the complete display URL or put it in the repository.
 
 ## Cast the hosted display
 
-Install the Cast helper dependencies on a computer connected to the same Wi-Fi
-as the Nest Hub:
+After deploying to Cloud Run, add the private display URL and Nest Hub name to
+your local `config.json`:
 
-```bash
-python3 -m venv .venv-cast
-source .venv-cast/bin/activate
-python3 -m pip install -r requirements-cast.txt
+```json
+{
+  "display_url": "https://YOUR-SERVICE-URL/?key=YOUR_DISPLAY_ACCESS_KEY",
+  "cast_device": "Your Nest Hub name"
+}
 ```
 
-Cast the private display URL:
+Keep the rest of your existing `config.json` settings as well. Do not commit
+this file.
+
+Then cast the hosted display with:
 
 ```bash
 ./cast-cloud.command
-python3 -m py_compile server/server.py server/cast_cloud.py
 ```
 
-The computer can shut down after the hosted page appears. A Nest Hub Cast
-session is not guaranteed to remain open permanently; a reboot, update, network
-interruption, or receiver timeout may require recasting.
+The Mac and Nest Hub must be on the same Wi-Fi for Cast discovery. After the
+hosted page has loaded, the local Python server does not need to remain running
+because the Nest Hub loads the display from Google Cloud Run.
+
+A Nest Hub Cast session is not guaranteed to remain open permanently. A reboot,
+update, network interruption, or receiver timeout may require recasting.
 
 Browser audio requires tapping **Tap to enable alerts** after a new cast
 session. Audio support can vary with Nest Hub firmware, volume, and receiver
@@ -175,8 +264,14 @@ gcloud run deploy "$SERVICE_NAME" --source . --region "$REGION"
 The web service uses the Python standard library. Run tests with:
 
 ```bash
-python3 -m unittest -v
-python3 -m py_compile server/server.py server/cast_cloud.py
+.venv/bin/python3 -m unittest -v server/test_server.py
+.venv/bin/python3 -m py_compile \
+  server/server.py \
+  server/cast_clock.py \
+  server/cast_cloud.py \
+  server/test_server.py
+
+node --check web/js/app.js
 ```
 
 See [SECURITY.md](SECURITY.md) before publishing or reporting an issue.
