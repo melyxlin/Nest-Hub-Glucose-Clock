@@ -5,13 +5,13 @@ function GlucoseChart({
     now,
 }) {
     const width = 800
-    const height = 180
+    const height = 120
 
     const padding = {
-        top: 10,
+        top: 16,
         right: 10,
-        bottom: 28,
-        left: 42,
+        bottom: 30,
+        left: 38,
     }
 
     const chartWidth = width - padding.left - padding.right
@@ -69,9 +69,6 @@ function GlucoseChart({
 
     const highY = yForGlucose(highThreshold)
     const lowY = yForGlucose(lowThreshold)
-    const maxY = yForGlucose(maxGlucose)
-    const minY = yForGlucose(minGlucose)
-
     const hourLabels = [6, 5, 4, 3, 2, 1, 0]
 
     if (deduplicatedReadings.length < 2) {
@@ -86,23 +83,6 @@ function GlucoseChart({
                 role="img"
                 aria-label="Glucose over the last six hours"
             >
-                <text
-                    x={padding.left - 8}
-                    y={maxY + 4}
-                    textAnchor="end"
-                    className="axis-label"
-                >
-                    {maxGlucose}
-                </text>
-
-                <text
-                    x={padding.left - 8}
-                    y={minY}
-                    textAnchor="end"
-                    className="axis-label"
-                >
-                    {minGlucose}
-                </text>
                 <line
                     x1={padding.left}
                     y1={padding.top}

@@ -206,23 +206,44 @@ function App() {
           </div>
 
           <div className="trend">
-            <span className="delta">{reading.delta_display}</span>
+            <span className="delta">
+              {reading.delta === 0 ? '0' : reading.delta_display}
+            </span>
             <span className="arrow">{reading.arrow}</span>
           </div>
         </div>
       </section>
-      <section className="history">
-        <GlucoseChart
-          readings={history}
-          lowThreshold={reading.low_threshold}
-          highThreshold={reading.high_threshold}
-          now={now}
-        />
-      </section>
+      <section className="status-row">
+        <div className="status-chart">
+          <GlucoseChart
+            readings={history}
+            lowThreshold={reading.low_threshold}
+            highThreshold={reading.high_threshold}
+            now={now}
+          />
+        </div>
 
-      <footer className="metadata">
-        {stale ? 'Stale data' : formatAge(liveAgeSeconds)}
-      </footer>
+        <div className="status-stat">
+          <span className="status-label">IOB</span>
+          <span className="status-value">
+            {reading.iob == null ? '—' : `${reading.iob.toFixed(1)} U`}
+          </span>
+        </div>
+
+        <div className="status-stat">
+          <span className="status-label">COB</span>
+          <span className="status-value">
+            {reading.cob == null ? '—' : `${Math.round(reading.cob)} g`}
+          </span>
+        </div>
+
+        <div className="status-stat status-update">
+          <span className="status-label">Updated</span>
+          <span className="status-value">
+            {stale ? 'Stale data' : formatAge(liveAgeSeconds)}
+          </span>
+        </div>
+      </section>
 
       <button
         type="button"

@@ -416,6 +416,65 @@ class NightscoutClient:
         
         return readings
 
+    def loop_status(self) -> dict[str, Any]:
+        """Fetch the latest Loop IOB and COB values from Nightscout."""
+        if self.config.get("demo_mode"):
+            return {
+                "iob": 2.9,
+                "cob": 14,
+            }
+
+        base_url = str(self.config["nightscout_url"]).strip().rstrip("/")
+        if not base_url:
+            raise RuntimeError("nightscout_url is missing from config.json")
+
+        token = str(self.config.get("nightscout_token", "")).strip()
+
+        params = {"count": "1"}
+        headers = {
+            "Accept": "application/json",
+            "User-Agent": "NestHubGlucoseClock/1.0",
+        }
+
+        if token and self.config.get("auth_mode") == "header":
+            headers["Authorization"] = f"Bearer {token}"
+        elif token:
+            params["token"] = token
+
+        endpoint = (
+            f"{base_url}/api/v1/devicestatus.json?"
+            f"{urllib.parse.urlencode(params)}"
+        )
+
+        request = urllib.request.Request(endpoint, headers=headers)
+
+        try:
+            with urllib.request.urlopen(request, timeout=10) as response:
+                payload = json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code in (HTTPStatus.UNAUTHORIZED, HTTPStatus.FORBIDDEN):
+                raise RuntimeError(
+                    "Nightscout rejected the access token"
+                ) from error
+            raise RuntimeError(
+                f"Nightscout returned HTTP {error.code}"
+            ) from error
+        except urllib.error.URLError as error:
+            raise RuntimeError("Could not connect to Nightscout") from error
+
+        if not isinstance(payload, list) or not payload:
+            raise RuntimeError("Nightscout returned no device status")
+
+        loop = payload[0].get("loop", {})
+
+        iob_data = loop.get("iob", {})
+        cob_data = loop.get("cob", {})
+
+        return {
+            "iob": iob_data.get("iob"),
+            "cob": cob_data.get("cob"),
+        }
+
     
     def _fetch(self) -> dict[str, Any]:
         base_url = str(self.config["nightscout_url"]).strip().rstrip("/")
@@ -542,6 +601,14 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
     def _serve_glucose(self) -> None:
         try:
             result = self.app.client.latest()
+            try:
+                loop_status = self.app.client.loop_status()
+                result["iob"] = loop_status.get("iob")
+                result["cob"] = loop_status.get("cob")
+            except Exception:
+                result["iob"] = None
+                result["cob"] = None
+
             settings = self.app.settings.get()
             result["range"] = range_for_glucose(
                 float(result["value"]),
