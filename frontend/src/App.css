@@ -1,0 +1,317 @@
+.display {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  padding: 2rem 3rem;
+  color: white;
+  transition: background 500ms ease;
+}
+
+.display-in-range {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(52, 168, 83, 0.7), transparent 55%),
+    #137333;
+}
+
+.display-high {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(251, 188, 4, 0.65), transparent 55%),
+    #b06000;
+}
+
+.display-low {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(234, 67, 53, 0.7), transparent 55%),
+    #a50e0e;
+}
+
+.display-stale,
+.display-error,
+.display-loading {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(95, 99, 104, 0.55), transparent 55%),
+    #202124;
+}
+
+.clock {
+  text-align: center;
+}
+
+.time {
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.date {
+  margin-top: 0.5rem;
+  font-size: clamp(1rem, 2vw, 1.5rem);
+  opacity: 0.8;
+}
+
+.glucose {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.glucose-layout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(2rem, 5vw, 5rem);
+}
+
+.reading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.glucose-value {
+  font-size: clamp(8rem, 25vw, 18rem);
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+}
+
+.units {
+  margin-top: 0.75rem;
+  font-size: clamp(1rem, 3vw, 2rem);
+  opacity: 0.8;
+}
+
+.trend {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  font-weight: 500;
+}
+
+.delta {
+  line-height: 1;
+}
+
+.arrow {
+  font-size: 1.25em;
+  line-height: 1;
+}
+
+.metadata {
+  text-align: center;
+  font-size: clamp(1rem, 2vw, 1.4rem);
+  opacity: 0.75;
+}
+
+.status-message {
+  align-self: center;
+  justify-self: center;
+  grid-row: 2;
+  font-size: clamp(2rem, 5vw, 4rem);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .display {
+    transition: none;
+  }
+}
+
+.history {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.history-chart-container {
+  width: min(100%, 1000px);
+}
+
+.history-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.range-area {
+  fill: rgba(255, 255, 255, 0.06);
+}
+
+.threshold-line {
+  stroke-width: 1.5;
+  stroke-dasharray: 7 6;
+}
+
+.high-line {
+  stroke: #fbbc04;
+}
+
+.low-line {
+  stroke: #ff6b6b;
+}
+
+.threshold-label,
+.time-label {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.high-label {
+  fill: #fbbc04;
+}
+
+.low-label {
+  fill: #ff6b6b;
+}
+
+.time-label {
+  fill: rgba(255, 255, 255, 0.75);
+}
+
+.glucose-line {
+  fill: none;
+  stroke: white;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-empty {
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.metadata {
+  margin-top: 0.25rem;
+}
+
+.settings-button {
+  position: fixed;
+  right: 2rem;
+  bottom: 1.5rem;
+  padding: 0.65rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.15);
+  color: white;
+  font: inherit;
+  font-size: 1.15rem;
+  cursor: pointer;
+}
+
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.settings-dialog {
+  width: min(90vw, 420px);
+  padding: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 1.25rem;
+  background: #202124;
+  color: white;
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.35);
+}
+
+.settings-dialog h2 {
+  margin: 0 0 1.5rem;
+  font-size: 1.75rem;
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.threshold-control button,
+.settings-actions button {
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+  font: inherit;
+  cursor: pointer;
+}
+
+.threshold-control button {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.4rem;
+}
+
+.sound-setting {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+
+.sound-setting input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+}
+
+.settings-actions button {
+  padding: 0.6rem 1.25rem;
+}
+
+.axis-label {
+  fill: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.axis-line {
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1.5;
+}
+
+.axis-tick {
+  stroke: rgba(255, 255, 255, 0.65);
+  stroke-width: 1.5;
+}
+
+.sound-button {
+  position: fixed;
+  left: 2rem;
+  bottom: 1.5rem;
+  padding: 0.65rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.15);
+  color: white;
+  font: inherit;
+  font-size: 1.15rem;
+  cursor: pointer;
+}

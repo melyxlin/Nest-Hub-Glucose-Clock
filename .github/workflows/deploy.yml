@@ -22,11 +22,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v7
         
-      - name: Run tests
+      - name: Run Python tests
         run: |
           python3 -m unittest -v server/test_server.py
           python3 -m py_compile server/server.py server/cast_clock.py server/cast_cloud.py server/test_server.py
-          node --check web/js/app.js
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v3

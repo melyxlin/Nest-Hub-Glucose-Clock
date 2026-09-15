@@ -468,7 +468,11 @@ class ClockRequestHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
             return
 
-        if path.startswith("/css/") or path.startswith("/js/"):
+        if path.startswith("/assets/"):
+            self._serve_file(WEB_ROOT / path.lstrip("/"))
+            return
+
+        if path in ("/favicon.svg", "/icons.svg"):
             self._serve_file(WEB_ROOT / path.lstrip("/"))
             return
 
